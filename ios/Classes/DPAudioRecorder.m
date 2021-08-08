@@ -183,7 +183,7 @@ static DPAudioRecorder *recorderManager = nil;
         @{AVSampleRateKey:@8000.0,    //采样率
           AVFormatIDKey:@(kAudioFormatLinearPCM),//音频格式
           AVLinearPCMBitDepthKey:@16,    //采样位数 默认 16
-          AVNumberOfChannelsKey:@1,   // 通道的数目
+          AVNumberOfChannelsKey:@2,   // 通道的数目
           AVEncoderAudioQualityKey:@(AVAudioQualityMin),
           AVEncoderBitRateKey:@16000,
 //          AVEncoderBitRateStrategyKey:AVAudioBitRateStrategy_VariableConstrained
@@ -265,11 +265,12 @@ static DPAudioRecorder *recorderManager = nil;
     
     // lame param init
     lame = lame_init();
-    lame_set_num_channels(lame, 1);
+    lame_set_num_channels(lame, 2);
     lame_set_in_samplerate(lame, 16000);
     lame_set_brate(lame, 128);
-    lame_set_mode(lame, 1);
-    lame_set_quality(lame, 2);
+    lame_set_VBR(lame, vbr_default);
+    lame_set_mode(lame, 3);
+    lame_set_quality(lame, 5);
     lame_init_params(lame);
     
     if (audioData.bytes > 0) {
@@ -300,6 +301,7 @@ static DPAudioRecorder *recorderManager = nil;
     [handle closeFile];
     lame_close(lame);
 }
+
 
 NSData* WriteWavFileHeader(long lengthWithHeader, int sampleRate, int channels, int PCMBitDepth) {
     Byte header[44];
