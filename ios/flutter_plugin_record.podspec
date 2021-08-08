@@ -19,6 +19,7 @@ A new Flutter plugin.
 #  s.vendored_libraries = 'Classes/libopencore-amrnb.a'
   s.dependency 'Flutter'
   s.framework  = "AVFoundation"
-  s.ios.deployment_target = '8.0'
+  s.ios.deployment_target = '9.0'
+  s.vendored_libraries = "Classes/Fat-Lame/lib/libmp3lame.a"
 end
 

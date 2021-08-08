@@ -4,8 +4,10 @@
 #import <AVFoundation/AVFoundation.h>
 #import <UIKit/UIKit.h>
 #import "JX_GCDTimerManager.h"
+#import "lame.h"
 
-
+// GLobal var
+lame_t lame;
 
 #define MAX_RECORDER_TIME 2100  //最大录制时间
 #define MIN_RECORDER_TIME 1    // 最小录制时间
@@ -15,10 +17,11 @@
 //定义音频枚举类型
 typedef NS_ENUM(NSUInteger, CSVoiceType) {
     CSVoiceTypeWav,
-    CSVoiceTypeAmr
+    CSVoiceTypeAmr,
+    CSVoiceTypeMp3
 };
 
-static const CSVoiceType preferredVoiceType = CSVoiceTypeWav;
+static CSVoiceType preferredVoiceType = CSVoiceTypeWav;
 
 
 @interface DPAudioRecorder () <AVAudioRecorderDelegate>
@@ -29,6 +32,7 @@ static const CSVoiceType preferredVoiceType = CSVoiceTypeWav;
 }
 @property (nonatomic, strong) AVAudioRecorder *audioRecorder;
 @property (nonatomic, strong) NSString *originWaveFilePath;
+@property (nonatomic, copy)  void (^onRecordError)(NSInteger);
 @end
 
 @implementation DPAudioRecorder
@@ -73,6 +77,7 @@ static DPAudioRecorder *recorderManager = nil;
         [[NSData data] writeToFile:mp3RecordFilePath atomically:YES];
     }
     self.originWaveFilePath = mp3RecordFilePath;
+    preferredVoiceType = CSVoiceTypeMp3;
     
     NSLog(@"ios------初始化录制文件路径---%@",mp3RecordFilePath);
 
@@ -129,7 +134,6 @@ static DPAudioRecorder *recorderManager = nil;
             self.audioStartRecording(NO);
         }
     }
-    
     
     [self createPickSpeakPowerTimer];
 }
@@ -204,25 +208,30 @@ static DPAudioRecorder *recorderManager = nil;
     //暂存录音文件路径
     NSString *wavRecordFilePath = self.originWaveFilePath;
     NSLog(@"录音暂存位置 %@ ",wavRecordFilePath);
-    NSData *cacheAudioData;
+    NSData *cacheAudioData = [NSData dataWithContentsOfFile:wavRecordFilePath];
     switch (preferredVoiceType) {
-        case CSVoiceTypeWav:
-            cacheAudioData = [NSData dataWithContentsOfFile:wavRecordFilePath];
+        case CSVoiceTypeMp3:
+        {
+            [self converToMp3:wavRecordFilePath withData:cacheAudioData error:^(NSInteger errorCode) {
+                if (self.audioRecordingFail) {
+                    self.audioRecordingFail(@"格式转化出错");
+                }
+            }];
+        }
+            break;
+        default:
+        {
+            cacheAudioData = [self appandWavHead:cacheAudioData];
+        }
             break;
     }
     
     //大于最小录音时长时,发送数据
     if (audioTimeLength > MIN_RECORDER_TIME) {
         dispatch_async(dispatch_get_global_queue(0, 0), ^{
-            NSUInteger location = 4100;
-            NSData *body = [cacheAudioData subdataWithRange:NSMakeRange(location, cacheAudioData.length - location)];
-            NSMutableData *data1 = WriteWavFileHeader(body.length + 44, 8000, 1, 16).mutableCopy;
-            [data1 appendData:body];
-//            NSLog(@"date1date1date1date1[0-200]:%@", [data1 subdataWithRange:NSMakeRange(0, 200)]);
-            
             dispatch_sync(dispatch_get_main_queue(), ^{
                 if (self.audioRecorderFinishRecording) {
-                    self.audioRecorderFinishRecording(data1, self->audioTimeLength,wavRecordFilePath);
+                    self.audioRecorderFinishRecording(cacheAudioData, self->audioTimeLength,wavRecordFilePath);
                 }
             });
         });
@@ -239,6 +248,57 @@ static DPAudioRecorder *recorderManager = nil;
         dispatch_source_cancel(timer);
         timer = NULL;
     }
+}
+
+#pragma mark - 添加Wav文件头
+- (NSData*) appandWavHead:(NSData*) cacheAudioData {
+    NSUInteger location = 4100;
+    NSData *body = [cacheAudioData subdataWithRange:NSMakeRange(location, cacheAudioData.length - location)];
+    NSMutableData *data = WriteWavFileHeader(body.length + 44, 8000, 1, 16).mutableCopy;
+    [data appendData:body];
+    return data;
+}
+
+#pragma mark - lame mp3转化处理
+- (void)converToMp3:(NSString *) filePath withData:(NSData *) audioData error:(void (^)(NSInteger)) onError{
+    NSFileHandle *handle = [NSFileHandle fileHandleForUpdatingAtPath:filePath];
+    
+    // lame param init
+    lame = lame_init();
+    lame_set_num_channels(lame, 1);
+    lame_set_in_samplerate(lame, 16000);
+    lame_set_brate(lame, 128);
+    lame_set_mode(lame, 1);
+    lame_set_quality(lame, 2);
+    lame_init_params(lame);
+    
+    if (audioData.bytes > 0) {
+        short *recordingData = (short *)audioData.bytes;
+        NSUInteger pcmLen = audioData.length;
+        NSUInteger nsamples = pcmLen / 2;
+        
+        unsigned char buffer[pcmLen];
+        @try {
+            // mp3 encode
+            int recvLen = lame_encode_buffer(lame, recordingData, recordingData, (int)nsamples, buffer, (int)pcmLen);
+            if (recvLen != -1) {
+                NSData *piece = [NSData dataWithBytes:buffer length:recvLen];
+                [handle writeData:piece];
+            }
+        } @catch (NSException *exception) {
+            NSLog(@"exception = %@", exception);
+            if( onError != nil) {
+                //IO_EXCEPTION
+                onError(15);
+            }
+        } @finally {
+           
+        }
+    }
+    
+    NSLog(@"结束录音,输出文件");
+    [handle closeFile];
+    lame_close(lame);
 }
 
 NSData* WriteWavFileHeader(long lengthWithHeader, int sampleRate, int channels, int PCMBitDepth) {
