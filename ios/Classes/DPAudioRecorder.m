@@ -15,10 +15,11 @@
 //定义音频枚举类型
 typedef NS_ENUM(NSUInteger, CSVoiceType) {
     CSVoiceTypeWav,
-    CSVoiceTypeAmr
+    CSVoiceTypeAmr,
+    CSVoiceTypeAac
 };
 
-static const CSVoiceType preferredVoiceType = CSVoiceTypeWav;
+static CSVoiceType preferredVoiceType = CSVoiceTypeWav;
 
 
 @interface DPAudioRecorder () <AVAudioRecorderDelegate>
@@ -73,13 +74,14 @@ static DPAudioRecorder *recorderManager = nil;
         [[NSData data] writeToFile:mp3RecordFilePath atomically:YES];
     }
     self.originWaveFilePath = mp3RecordFilePath;
+    preferredVoiceType = CSVoiceTypeAac;
     
     NSLog(@"ios------初始化录制文件路径---%@",mp3RecordFilePath);
 
 }
 
 - (NSString *) createMp3FilePath {
-    return [NSTemporaryDirectory() stringByAppendingPathComponent:@"WAVtemporaryRadio.MP3"];
+    return [NSTemporaryDirectory() stringByAppendingPathComponent:@"WAVtemporaryRadio.m4a"];
   
 }
 - (NSString *) createWaveFilePath {
@@ -177,7 +179,7 @@ static DPAudioRecorder *recorderManager = nil;
         NSLog(@"%@", wavRecordFilePath);
         NSDictionary *param =
         @{AVSampleRateKey:@8000.0,    //采样率
-          AVFormatIDKey:@(kAudioFormatLinearPCM),//音频格式
+          AVFormatIDKey:@(kAudioFormatMPEG4AAC),//音频格式
           AVLinearPCMBitDepthKey:@16,    //采样位数 默认 16
           AVNumberOfChannelsKey:@1,   // 通道的数目
           AVEncoderAudioQualityKey:@(AVAudioQualityMin),
@@ -208,6 +210,10 @@ static DPAudioRecorder *recorderManager = nil;
     switch (preferredVoiceType) {
         case CSVoiceTypeWav:
             cacheAudioData = [NSData dataWithContentsOfFile:wavRecordFilePath];
+            break;
+        case CSVoiceTypeAac:
+            break;
+        default:
             break;
     }
     
