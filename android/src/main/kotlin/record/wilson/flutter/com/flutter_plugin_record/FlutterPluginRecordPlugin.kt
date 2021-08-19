@@ -99,6 +99,7 @@ class FlutterPluginRecordPlugin : FlutterPlugin, MethodCallHandler, ActivityAwar
         when (call.method) {
             "init" -> init()
             "initRecordMp3" -> initRecordMp3()
+            "initRecord" -> initRecord()
             "start" -> start()
             "startByWavPath" -> startByWavPath()
             "stop" -> stop()
@@ -261,11 +262,11 @@ class FlutterPluginRecordPlugin : FlutterPlugin, MethodCallHandler, ActivityAwar
 
     private fun init() {
         recordMp3=false
-        checkPermission()
+//        checkPermission()
     }
     private fun initRecordMp3(){
         recordMp3=true
-        checkPermission()
+//        checkPermission()
         initWavToMp3()
     }
 

@@ -54,7 +54,7 @@ class FlutterPluginRecord {
       _responsePlayStateController.stream;
 
   ///原生回调
-  static Future<dynamic> _handler(MethodCall methodCall) async{
+  static Future<dynamic> _handler(MethodCall methodCall) async {
     // print("--------FlutterPluginRecord " + methodCall.method);
 
     String id = (methodCall.arguments as Map)['id'];
@@ -143,6 +143,13 @@ class FlutterPluginRecord {
   Future initRecordMp3() async {
     return await _invokeMethod('initRecordMp3', <String, String>{
       "initRecordMp3": "initRecordMp3",
+    });
+  }
+
+  //初始化录音
+  Future initRecord() async {
+    return await _invokeMethod('initRecord', <String, String>{
+      "initRecord": "initRecord",
     });
   }
 
